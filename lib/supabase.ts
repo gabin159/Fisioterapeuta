@@ -1,66 +1,167 @@
-type NewClient = {
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+
+export type Client = {
+  id: number;
+  created_at: string | null;
+  creado_en: string | null;
   nombre: string;
   celular: string;
+  correo: string | null;
   servicio: string;
+  fecha_cita: string | null;
+  hora_cita: string | null;
+  estado: string | null;
 };
 
-export type Client = NewClient & {
+export type Service = {
   id: string;
-  creado_en: string;
+  numero: string | null;
+  titulo: string;
+  descripcion: string | null;
+  precio: string | null;
+  imagen: string | null;
+  orden: number | null;
+  activo: boolean | null;
+  creado_en: string | null;
+  actualizado_en: string | null;
 };
 
-function getConfig() {
-  const url = process.env.SUPABASE_URL;
-  const secretKey = process.env.SUPABASE_SECRET_KEY;
+export type Administrator = {
+  id: string;
+  email: string;
+  password_hash: string;
+  creado_en: string | null;
+};
 
-  if (!url || !secretKey) {
-    throw new Error("La conexión con la base de datos no está configurada correctamente en variables de entorno.");
+export type NewClientInput = {
+  nombre: string;
+  celular: string;
+  correo?: string | null;
+  servicio: string;
+  fecha_cita?: string | null;
+  hora_cita?: string | null;
+  estado?: string | null;
+};
+
+export type ServiceInput = {
+  numero?: string | null;
+  titulo: string;
+  descripcion?: string | null;
+  precio?: string | null;
+  imagen?: string | null;
+  orden?: number | null;
+  activo?: boolean | null;
+};
+
+let cachedAdmin: SupabaseClient | null = null;
+
+export function supabaseAdmin(): SupabaseClient {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SECRET_KEY;
+
+  if (!url || !key) {
+    throw new Error("La conexión con la base de datos no está configurada en variables de entorno.");
   }
   if (!url.startsWith("https://")) {
     throw new Error("SUPABASE_URL debe ser una URL HTTPS válida.");
   }
 
-  return { url, secretKey };
-}
-
-async function request(path: string, options: RequestInit) {
-  const { url, secretKey } = getConfig();
-
-  const response = await fetch(`${url}/rest/v1/${path}`, {
-    ...options,
-    headers: {
-      apikey: secretKey,
-      Authorization: `Bearer ${secretKey}`,
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    const errorDetail = await response.text().catch(() => "Sin detalle de error");
-    console.error(`[Supabase Error] ${response.status} - ${errorDetail}`);
-    throw new Error("Ocurrió un error al procesar la solicitud en la base de datos.");
+  if (!cachedAdmin) {
+    cachedAdmin = createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
   }
 
-  return response;
-}
-
-export async function createClient(client: NewClient): Promise<Client[]> {
-  const response = await request("clientes", {
-    method: "POST",
-    headers: { Prefer: "return=representation" },
-    body: JSON.stringify(client),
-  });
-
-  return (await response.json()) as Client[];
+  return cachedAdmin;
 }
 
 export async function getClients(): Promise<Client[]> {
-  const response = await request(
-    "clientes?select=id,nombre,celular,servicio,creado_en&order=creado_en.desc",
-    { method: "GET" }
-  );
+  const { data, error } = await supabaseAdmin()
+    .from("clientes")
+    .select("*")
+    .order("creado_en", { ascending: false, nullsFirst: false });
 
-  return (await response.json()) as Client[];
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Client[];
+}
+
+export async function createClientRecord(input: NewClientInput): Promise<Client> {
+  const { data, error } = await supabaseAdmin()
+    .from("clientes")
+    .insert(input)
+    .select("*")
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data as Client;
+}
+
+export async function updateClientStatus(id: number, estado: string): Promise<void> {
+  const { error } = await supabaseAdmin()
+    .from("clientes")
+    .update({ estado })
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+}
+
+export async function getServices(): Promise<Service[]> {
+  const { data, error } = await supabaseAdmin()
+    .from("servicios")
+    .select("*")
+    .order("orden", { ascending: true, nullsFirst: false });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Service[];
+}
+
+export async function getActiveServices(): Promise<Service[]> {
+  const services = await getServices();
+  return services.filter((service) => service.activo !== false);
+}
+
+export async function createService(input: ServiceInput): Promise<Service> {
+  const { data, error } = await supabaseAdmin()
+    .from("servicios")
+    .insert(input)
+    .select("*")
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data as Service;
+}
+
+export async function updateService(id: string, input: ServiceInput): Promise<void> {
+  const { error } = await supabaseAdmin()
+    .from("servicios")
+    .update({ ...input, actualizado_en: new Date().toISOString() })
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+}
+
+export async function setServiceActive(id: string, activo: boolean): Promise<void> {
+  const { error } = await supabaseAdmin()
+    .from("servicios")
+    .update({ activo, actualizado_en: new Date().toISOString() })
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteService(id: string): Promise<void> {
+  const { error } = await supabaseAdmin().from("servicios").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export async function getAdministratorByEmail(email: string): Promise<Administrator | null> {
+  const { data, error } = await supabaseAdmin()
+    .from("administradores")
+    .select("*")
+    .ilike("email", email)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return (data as Administrator) ?? null;
 }

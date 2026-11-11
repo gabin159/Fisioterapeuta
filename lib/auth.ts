@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "crypto";
+import { cookies } from "next/headers";
 
 const SESSION_DURATION_SECONDS = 60 * 60 * 12; // 12 horas
 
@@ -69,3 +70,8 @@ export const sessionCookie = {
   sameSite: "lax" as const,
   path: "/",
 };
+
+export async function getServerSession(): Promise<SessionPayload | null> {
+  const store = await cookies();
+  return verifySession(store.get(sessionCookie.name)?.value);
+}
