@@ -230,6 +230,7 @@ export default function Home() {
       </a>
       <div className="footer-links">
         <a href="https://www.instagram.com/lafisioterapeutali/" target="_blank" rel="noopener noreferrer">Instagram</a>
+        <a href="https://www.instagram.com/lafisioterapeutali/" target="_blank" rel="noopener noreferrer">Instagram</a>
       </div>
       <p className="footer-payments">Pagos por Nequi / Llave: 311 398 1422 (Lina Murillo) o efectivo.</p>
       <p>© 2026 La Fisioterapeuta Li</p>

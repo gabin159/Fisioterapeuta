@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "crypto";
 
-const SESSION_DURATION_SECONDS = 60 * 60 * 12;
+const SESSION_DURATION_SECONDS = 60 * 60 * 12; // 12 horas
 
 type SessionPayload = {
   email: string;
@@ -9,7 +9,7 @@ type SessionPayload = {
 
 function getSecret() {
   const secret = process.env.AUTH_SESSION_SECRET;
-  if (!secret) throw new Error("Falta AUTH_SESSION_SECRET");
+  if (!secret) throw new Error("Falta la variable de entorno AUTH_SESSION_SECRET");
   return secret;
 }
 
@@ -17,13 +17,18 @@ function sign(value: string) {
   return createHmac("sha256", getSecret()).update(value).digest("base64url");
 }
 
-export function safeEquals(first: string, second: string) {
-  const firstBuffer = Buffer.from(first);
-  const secondBuffer = Buffer.from(second);
-  return firstBuffer.length === secondBuffer.length && timingSafeEqual(firstBuffer, secondBuffer);
+export function safeEquals(first: string, second: string): boolean {
+  const a = Buffer.from(first);
+  const b = Buffer.from(second);
+
+  // Evita comparar longitudes directamente para prevenir timing attacks por longitud
+  const aHash = createHmac("sha256", "timing-safe-key").update(a).digest();
+  const bHash = createHmac("sha256", "timing-safe-key").update(b).digest();
+
+  return timingSafeEqual(aHash, bHash);
 }
 
-export function createSession(email: string) {
+export function createSession(email: string): string {
   const payload: SessionPayload = {
     email,
     expiresAt: Date.now() + SESSION_DURATION_SECONDS * 1000,
@@ -34,15 +39,33 @@ export function createSession(email: string) {
 
 export function verifySession(token: string | undefined): SessionPayload | null {
   if (!token) return null;
+  
   const [encodedPayload, signature] = token.split(".");
-  if (!encodedPayload || !signature || !safeEquals(signature, sign(encodedPayload))) return null;
+  if (!encodedPayload || !signature) return null;
+
+  const expectedSignature = sign(encodedPayload);
+  if (!safeEquals(signature, expectedSignature)) return null;
 
   try {
-    const payload = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf8")) as SessionPayload;
-    return payload.expiresAt > Date.now() ? payload : null;
+    const payload = JSON.parse(
+      Buffer.from(encodedPayload, "base64url").toString("utf8")
+    ) as SessionPayload;
+
+    if (!payload.expiresAt || payload.expiresAt <= Date.now()) {
+      return null;
+    }
+
+    return payload;
   } catch {
     return null;
   }
 }
 
-export const sessionCookie = { name: "fisioterapeuta_li_session", maxAge: SESSION_DURATION_SECONDS };
+export const sessionCookie = {
+  name: "fisioterapeuta_li_session",
+  maxAge: SESSION_DURATION_SECONDS,
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax" as const,
+  path: "/",
+};
