@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ClientStatusControl from "@/app/_components/client-status-control";
 import NewRequestButton from "@/app/_components/new-request-button";
 import { getClients, type Client } from "@/lib/supabase";
 
@@ -21,12 +22,6 @@ function formatClientDate(value: string | null) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
-}
-
-function statusClass(estado: string | null) {
-  const value = (estado ?? "").toLowerCase();
-  if (value.includes("al d") || value.includes("confirm")) return "status confirmada";
-  return "status pendiente";
 }
 
 export default async function DashboardPage() {
@@ -104,7 +99,7 @@ export default async function DashboardPage() {
                   {client.correo ? ` · ${client.correo}` : ""}
                 </p>
               </div>
-              <span className={statusClass(client.estado)}>{client.estado ?? "Pendiente"}</span>
+              <ClientStatusControl clientId={client.id} estado={client.estado} />
               <a
                 className="client-whatsapp"
                 href={`https://wa.me/${client.celular.replace(/\D/g, "")}`}

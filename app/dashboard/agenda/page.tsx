@@ -1,4 +1,4 @@
-import { getClients, type Client } from "@/lib/supabase";
+import { getScheduledClients, type Client } from "@/lib/supabase";
 import AgendaView from "./agenda-view";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +8,9 @@ export default async function AgendaPage() {
   let error = "";
 
   try {
-    clients = await getClients();
+    clients = (await getScheduledClients()).filter(
+      (client) => Boolean(client.fecha_cita) && Boolean(client.hora_cita)
+    );
   } catch {
     error = "No fue posible cargar la agenda desde la base de datos.";
   }
@@ -20,7 +22,7 @@ export default async function AgendaPage() {
           <p className="eyebrow">AGENDA</p>
           <h1>Tu semana.</h1>
           <p className="dash-page-subtitle">
-            Tunja de lunes a viernes (azul) y Turmequé los sábados (verde).
+            Lunes a domingo, 8:00 a.m. a 4:00 p.m. Tunja en azul y Turmequé en verde.
           </p>
         </div>
       </header>

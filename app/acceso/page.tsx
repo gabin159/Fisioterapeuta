@@ -49,8 +49,9 @@ export default function AccessPage() {
           </p>
         </div>
 
-        <Link className="back-site" href="/">
-          ← Volver al sitio web
+        <Link className="access-back" href="/">
+          <span aria-hidden="true">←</span>
+          Volver al sitio
         </Link>
       </section>
 

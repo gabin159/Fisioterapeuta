@@ -3,22 +3,20 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import ClientForm from "@/app/_components/client-form";
+import ClientStatusControl from "@/app/_components/client-status-control";
 import Modal from "@/app/_components/modal";
 import type { Client } from "@/lib/supabase";
-
-function isUpToDate(estado: string | null) {
-  const value = (estado ?? "").toLowerCase();
-  return value.includes("al d") || value.includes("confirm");
-}
+import { formatTimeLabel, isUpToDate, normalizeDateKey } from "@/lib/format";
 
 function formatCita(client: Client) {
-  if (!client.fecha_cita) return "Sin agendar";
+  const key = normalizeDateKey(client.fecha_cita);
+  if (!key) return "Sin agendar";
   const label = new Intl.DateTimeFormat("es-CO", {
     day: "2-digit",
     month: "short",
     year: "numeric",
-  }).format(new Date(`${client.fecha_cita}T12:00:00`));
-  return client.hora_cita ? `${label} · ${client.hora_cita.slice(0, 5)}` : label;
+  }).format(new Date(`${key}T12:00:00`));
+  return client.hora_cita ? `${label} · ${formatTimeLabel(client.hora_cita)}` : label;
 }
 
 export default function ClientsView({ clients }: { clients: Client[] }) {
@@ -106,9 +104,7 @@ export default function ClientsView({ clients }: { clients: Client[] }) {
                 <td>{client.servicio}</td>
                 <td>{formatCita(client)}</td>
                 <td>
-                  <span className={`badge ${isUpToDate(client.estado) ? "ok" : "pending"}`}>
-                    {client.estado ?? "Pendiente"}
-                  </span>
+                  <ClientStatusControl clientId={client.id} estado={client.estado} />
                 </td>
                 <td>
                   <a

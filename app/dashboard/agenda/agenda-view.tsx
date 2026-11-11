@@ -5,9 +5,18 @@ import { useRouter } from "next/navigation";
 import ClientForm from "@/app/_components/client-form";
 import Modal from "@/app/_components/modal";
 import type { Client } from "@/lib/supabase";
+import { formatTimeLabel, normalizeDateKey, parseAppointmentTime } from "@/lib/format";
 
-const HOURS = [8, 9, 10, 11, 12, 13, 14, 15];
-const DAY_LABELS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+const HOURS = Array.from({ length: 9 }, (_, index) => 8 + index);
+const DAY_LABELS = [
+  "Lunes",
+  "Martes",
+  "Miércoles",
+  "Jueves",
+  "Viernes",
+  "Sábado",
+  "Domingo",
+];
 
 function pad(value: number) {
   return String(value).padStart(2, "0");
@@ -31,15 +40,13 @@ function startOfWeek(base: Date) {
   return date;
 }
 
-function normalizeHour(value: string | null) {
-  if (!value) return "";
-  const match = value.match(/(\d{1,2})/);
-  if (!match) return "";
-  return `${pad(Number(match[1]))}:00`;
+function slotFor(value: string | null | undefined) {
+  const parsed = parseAppointmentTime(value);
+  return parsed ? parsed.hour : null;
 }
 
 function formatRange(start: Date) {
-  const end = addDays(start, 5);
+  const end = addDays(start, 6);
   const startLabel = new Intl.DateTimeFormat("es-CO", { day: "numeric", month: "short" }).format(start);
   const endLabel = new Intl.DateTimeFormat("es-CO", {
     day: "numeric",
@@ -55,26 +62,38 @@ export default function AgendaView({ clients }: { clients: Client[] }) {
   const [slot, setSlot] = useState<{ fecha: string; hora: string; etiqueta: string } | null>(null);
 
   const days = useMemo(
-    () => Array.from({ length: 6 }, (_, index) => addDays(weekStart, index)),
+    () => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)),
     [weekStart]
+  );
+
+  const scheduled = useMemo(
+    () =>
+      clients.filter(
+        (client) =>
+          Boolean(normalizeDateKey(client.fecha_cita)) && slotFor(client.hora_cita) !== null
+      ),
+    [clients]
   );
 
   const grouped = useMemo(() => {
     const map = new Map<string, Client[]>();
-    for (const client of clients) {
-      if (!client.fecha_cita) continue;
-      const key = `${client.fecha_cita}|${normalizeHour(client.hora_cita)}`;
+    for (const client of scheduled) {
+      const dateKey = normalizeDateKey(client.fecha_cita);
+      const hour = slotFor(client.hora_cita);
+      if (!dateKey || hour === null) continue;
+      const key = `${dateKey}|${hour}`;
       const bucket = map.get(key);
       if (bucket) bucket.push(client);
       else map.set(key, [client]);
     }
     return map;
-  }, [clients]);
+  }, [scheduled]);
 
   const weekKeys = days.map((day) => ymd(day));
-  const weekAppointments = clients.filter((client) =>
-    client.fecha_cita ? weekKeys.includes(client.fecha_cita) : false
-  ).length;
+  const weekAppointments = scheduled.filter((client) => {
+    const dateKey = normalizeDateKey(client.fecha_cita);
+    return dateKey ? weekKeys.includes(dateKey) : false;
+  }).length;
 
   function openSlot(day: Date, hour: number) {
     setSlot({
@@ -84,7 +103,7 @@ export default function AgendaView({ clients }: { clients: Client[] }) {
         weekday: "long",
         day: "numeric",
         month: "long",
-      }).format(day)} · ${pad(hour)}:00`,
+      }).format(day)} · ${formatTimeLabel(`${pad(hour)}:00`)}`,
     });
   }
 
@@ -117,23 +136,30 @@ export default function AgendaView({ clients }: { clients: Client[] }) {
       <div className="agenda-scroll">
         <div className="agenda">
           <div className="agenda-corner" />
-          {days.map((day, index) => (
-            <div key={ymd(day)} className={`agenda-head ${index === 5 ? "sat" : ""}`}>
-              <strong>{DAY_LABELS[index]}</strong>
-              <span>
-                {new Intl.DateTimeFormat("es-CO", { day: "2-digit", month: "short" }).format(day)}
-              </span>
-              <em>{index === 5 ? "Turmequé" : "Tunja"}</em>
-            </div>
-          ))}
+          {days.map((day, index) => {
+            const weekend = index >= 5;
+            return (
+              <div key={ymd(day)} className={`agenda-head ${weekend ? "sat" : ""}`}>
+                <strong>{DAY_LABELS[index]}</strong>
+                <span>
+                  {new Intl.DateTimeFormat("es-CO", { day: "2-digit", month: "short" }).format(
+                    day
+                  )}
+                </span>
+                <em>{weekend ? "Turmequé" : "Tunja"}</em>
+              </div>
+            );
+          })}
 
           {HOURS.map((hour) => (
             <div className="agenda-row-contents" key={hour} style={{ display: "contents" }}>
-              <div className="agenda-time">{`${pad(hour)}:00`}</div>
+              <div className="agenda-time">{formatTimeLabel(`${pad(hour)}:00`)}</div>
               {days.map((day, index) => {
-                const key = `${ymd(day)}|${pad(hour)}:00`;
+                const key = `${ymd(day)}|${hour}`;
                 const items = grouped.get(key) ?? [];
-                const sedeClass = index === 5 ? "turmeque" : "tunja";
+                const weekend = index >= 5;
+                const sedeClass = weekend ? "turmeque" : "tunja";
+                const sedeLabel = weekend ? "Turmequé" : "Tunja";
                 return (
                   <div
                     key={key}
@@ -147,16 +173,21 @@ export default function AgendaView({ clients }: { clients: Client[] }) {
                         openSlot(day, hour);
                       }
                     }}
-                    aria-label={`Agendar ${DAY_LABELS[index]} ${pad(hour)}:00`}
+                    aria-label={`Agendar ${DAY_LABELS[index]} ${formatTimeLabel(`${pad(hour)}:00`)}`}
                   >
                     {items.map((client) => (
                       <span
                         key={client.id}
                         className={`chip ${sedeClass}`}
+                        title={`${client.nombre} · ${client.servicio}`}
                         onClick={(event) => event.stopPropagation()}
                       >
+                        <span className="chip-top">
+                          <em>{formatTimeLabel(client.hora_cita)}</em>
+                          <i className={`chip-sede ${sedeClass}`}>{sedeLabel}</i>
+                        </span>
                         <strong>{client.nombre}</strong>
-                        {client.servicio}
+                        <small>{client.servicio}</small>
                       </span>
                     ))}
                   </div>
@@ -169,10 +200,10 @@ export default function AgendaView({ clients }: { clients: Client[] }) {
 
       <div className="agenda-legend">
         <span>
-          <i style={{ background: "#1e78d1" }} /> Sede Tunja · lunes a viernes
+          <i style={{ background: "#1d4ed8" }} /> Sede Tunja · lunes a viernes
         </span>
         <span>
-          <i style={{ background: "#22a06b" }} /> Sede Turmequé · sábado
+          <i style={{ background: "#22a06b" }} /> Sede Turmequé · sábado y domingo
         </span>
       </div>
 

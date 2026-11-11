@@ -1,4 +1,5 @@
 import LandingClient from "@/app/_components/landing-client";
+import TelegramWidget from "@/app/_components/telegram-widget";
 import { fallbackServices, type ServiceCardData } from "@/lib/content";
 import { getActiveServices } from "@/lib/supabase";
 
@@ -22,5 +23,10 @@ export default async function Home() {
     services = fallbackServices;
   }
 
-  return <LandingClient services={services} />;
+  return (
+    <>
+      <LandingClient services={services} />
+      <TelegramWidget />
+    </>
+  );
 }

@@ -57,4 +57,4 @@ export const serviceOptions = [
   "Procedimientos especializados",
 ];
 
-export const statusOptions = ["Pendiente", "Confirmada", "Al día"];
+export const statusOptions = ["Pendiente", "Pendiente de pago", "Confirmada", "Al día"];
