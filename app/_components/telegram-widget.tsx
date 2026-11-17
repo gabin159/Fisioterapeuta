@@ -2,7 +2,7 @@ export default function TelegramWidget() {
   return (
     <a
       className="tg-widget"
-      href="https://t.me/Ayudante_FisioBot"
+      href="https://t.me/FisioLi_tunja_bot"
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Agendar cita por Telegram con FisioBot"

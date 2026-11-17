@@ -4,7 +4,7 @@ import Image from "next/image";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import type { ServiceCardData } from "@/lib/content";
 import { dateKey, isWeekendKey, slotHour, slotsForDateKey } from "@/lib/agenda";
-import { normalizeDateKey, parseAppointmentTime, formatPrice, formatTimeLabel } from "@/lib/format";
+import { normalizeDateKey, parseAppointmentTime, formatPrice } from "@/lib/format";
 
 const navLinks = [
   { href: "#nosotros", label: "Acerca de mí" },
@@ -518,7 +518,7 @@ export default function LandingClient({ services }: { services: ServiceCardData[
                       </option>
                       {activeHours.map((hour) => (
                         <option key={hour} value={hour}>
-                          {formatTimeLabel(hour)}
+                          {hour}
                         </option>
                       ))}
                     </select>
