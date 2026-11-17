@@ -57,6 +57,9 @@ ADMIN_PASSWORD=tu-contrasena-segura
 AUTH_SESSION_SECRET=una-cadena-larga-y-aleatoria
 SUPABASE_URL=https://tu-proyecto.supabase.co
 SUPABASE_SECRET_KEY=tu-secret-key
+# Opcional: envío del correo de confirmación de reserva con Resend
+RESEND_API_KEY=tu-api-key-de-resend
+RESEND_FROM=Reservas <reservas@tudominio.com>
 ```
 
 Notas:
@@ -64,6 +67,7 @@ Notas:
 - `SUPABASE_SECRET_KEY` es una clave privada de servidor: **nunca** la expongas en el cliente ni la subas a GitHub.
 - `AUTH_SESSION_SECRET` se usa para firmar la cookie de sesión. Usa un valor aleatorio largo.
 - El login valida primero contra la tabla `administradores` y, si no encuentra el usuario, contra `ADMIN_EMAIL` y `ADMIN_PASSWORD`.
+- Si no configuras `RESEND_API_KEY` y `RESEND_FROM`, la reserva se guarda normalmente pero no se envía correo al cliente.
 
 ## Instalación y ejecución
 

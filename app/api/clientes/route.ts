@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth";
+import { sendBookingConfirmation } from "@/lib/email";
 import {
   createClientRecord,
   getClients,
+  isSlotTaken,
   updateClientStatus,
 } from "@/lib/supabase";
 
@@ -45,6 +47,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (fechaCita && horaCita && (await isSlotTaken(fechaCita, horaCita))) {
+      return NextResponse.json(
+        { message: "Ese horario ya está reservado. Elige otro día u hora." },
+        { status: 409 }
+      );
+    }
+
     await createClientRecord({
       nombre,
       celular,
@@ -54,6 +63,21 @@ export async function POST(request: Request) {
       hora_cita: horaCita || null,
       estado,
     });
+
+    if (correo && fechaCita && horaCita) {
+      try {
+        await sendBookingConfirmation({
+          nombre,
+          correo,
+          celular,
+          servicio,
+          fechaCita,
+          horaCita,
+        });
+      } catch {
+        // La cita queda registrada aunque el correo no se pueda enviar.
+      }
+    }
 
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch {

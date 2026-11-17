@@ -316,6 +316,7 @@
 .lp-form-head h3 { margin:0; color:var(--navy); font:500 24px "Playfair Display",serif; }
 .lp-form-head p { margin:3px 0 0; color:#6b86a5; font-size:12px; }
 .lp-form { display:grid; gap:16px; padding:0; background:transparent; box-shadow:none; }
+.lp-form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
 .lp-form label { display:grid; gap:7px; color:#446486; font-size:12px; font-weight:600; }
 .lp-form input, .lp-form select { width:100%; padding:12px 14px; border:1px solid #d7e2ee; border-radius:12px; background:#fbfdff; color:var(--navy); font:14px "DM Sans",sans-serif; outline:none; transition:.2s; }
 .lp-form input:focus, .lp-form select:focus { border-color:var(--electric); background:#fff; box-shadow:0 0 0 3px rgba(29,78,216,.12); }
@@ -357,6 +358,7 @@
   .lp-metrics { grid-template-columns:1fr; }
   .lp-floating { left:12px; bottom:18px; }
   .lp-form-card { padding:20px; }
+  .lp-form-row { grid-template-columns:1fr; }
   .lp-footer { flex-direction:column; align-items:flex-start; gap:14px; }
   .lp-footer-links { flex-wrap:wrap; }
 }

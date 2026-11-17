@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { parseAppointmentTime } from "@/lib/format";
 
 export type Client = {
   id: number;
@@ -97,6 +98,39 @@ export async function getScheduledClients(): Promise<Client[]> {
 
   if (error) throw new Error(error.message);
   return (data ?? []) as Client[];
+}
+
+export type BookedSlot = {
+  fecha_cita: string | null;
+  hora_cita: string | null;
+};
+
+export async function getBookedSlots(): Promise<BookedSlot[]> {
+  const { data, error } = await supabaseAdmin()
+    .from("clientes")
+    .select("fecha_cita, hora_cita")
+    .not("fecha_cita", "is", null)
+    .not("hora_cita", "is", null);
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as BookedSlot[];
+}
+
+export async function isSlotTaken(fechaCita: string, horaCita: string): Promise<boolean> {
+  const target = parseAppointmentTime(horaCita);
+  if (!target) return false;
+
+  const { data, error } = await supabaseAdmin()
+    .from("clientes")
+    .select("hora_cita")
+    .eq("fecha_cita", fechaCita);
+
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).some((row) => {
+    const booked = parseAppointmentTime(row.hora_cita as string | null);
+    return booked !== null && booked.hour === target.hour;
+  });
 }
 
 export async function createClientRecord(input: NewClientInput): Promise<Client> {

@@ -1,9 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import type { ServiceCardData } from "@/lib/content";
-import { formatPrice } from "@/lib/format";
+import { dateKey, isWeekendKey, slotHour, slotsForDateKey } from "@/lib/agenda";
+import { normalizeDateKey, parseAppointmentTime, formatPrice, formatTimeLabel } from "@/lib/format";
 
 const navLinks = [
   { href: "#nosotros", label: "Acerca de mí" },
@@ -24,11 +25,90 @@ export default function LandingClient({ services }: { services: ServiceCardData[
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedService, setSelectedService] = useState("");
+  const [bookedSlots, setBookedSlots] = useState<
+    { fecha_cita: string | null; hora_cita: string | null }[]
+  >([]);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedTime, setSelectedTime] = useState("");
+  const [today, setToday] = useState<Date | null>(null);
 
   const bookingOptions = useMemo(() => {
     const list = ["Valoración inicial", ...services.map((service) => service.titulo)];
     return Array.from(new Set(list.filter(Boolean)));
   }, [services]);
+
+  const loadAvailability = useCallback(async () => {
+    try {
+      const response = await fetch("/api/disponibilidad", { cache: "no-store" });
+      if (!response.ok) return;
+      const result = await response.json();
+      setBookedSlots(Array.isArray(result.slots) ? result.slots : []);
+    } catch {
+      setBookedSlots([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    setToday(new Date());
+    void loadAvailability();
+  }, [loadAvailability]);
+
+  const bookedHoursByDate = useMemo(() => {
+    const map = new Map<string, Set<number>>();
+    for (const slot of bookedSlots) {
+      const key = normalizeDateKey(slot.fecha_cita);
+      const parsed = parseAppointmentTime(slot.hora_cita);
+      if (!key || !parsed) continue;
+      const hours = map.get(key) ?? new Set<number>();
+      hours.add(parsed.hour);
+      map.set(key, hours);
+    }
+    return map;
+  }, [bookedSlots]);
+
+  const availableDays = useMemo(() => {
+    if (!today) return [];
+    const days: { key: string; label: string }[] = [];
+
+    for (let offset = 0; offset < 60; offset += 1) {
+      const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset);
+      const key = dateKey(date);
+      const booked = bookedHoursByDate.get(key) ?? new Set<number>();
+      const freeSlots = slotsForDateKey(key).filter((slot) => {
+        if (booked.has(slotHour(slot))) return false;
+        if (offset === 0 && slotHour(slot) <= today.getHours()) return false;
+        return true;
+      });
+      if (freeSlots.length === 0) continue;
+
+      const label = new Intl.DateTimeFormat("es-CO", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+      }).format(date);
+      const sede = isWeekendKey(key) ? "Turmequé" : "Tunja";
+      days.push({ key, label: `${label} · ${sede}` });
+    }
+
+    return days;
+  }, [bookedHoursByDate, today]);
+
+  const activeDate = availableDays.some((day) => day.key === selectedDate)
+    ? selectedDate
+    : availableDays[0]?.key ?? "";
+
+  const activeHours = useMemo(() => {
+    if (!activeDate || !today) return [];
+    const booked = bookedHoursByDate.get(activeDate) ?? new Set<number>();
+    const todayKey = dateKey(today);
+    return slotsForDateKey(activeDate).filter((slot) => {
+      if (booked.has(slotHour(slot))) return false;
+      if (activeDate === todayKey && slotHour(slot) <= today.getHours()) return false;
+      return true;
+    });
+  }, [activeDate, bookedHoursByDate, today]);
+
+  const activeTime = activeHours.includes(selectedTime) ? selectedTime : "";
 
   function bookService(title: string) {
     setSent(false);
@@ -40,6 +120,12 @@ export default function LandingClient({ services }: { services: ServiceCardData[
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+
+    if (!activeDate || !activeTime) {
+      setError("Selecciona un día y una hora disponibles.");
+      return;
+    }
+
     setIsSubmitting(true);
     const formData = new FormData(event.currentTarget);
 
@@ -50,13 +136,18 @@ export default function LandingClient({ services }: { services: ServiceCardData[
         body: JSON.stringify({
           nombre: formData.get("name"),
           celular: formData.get("phone"),
+          correo: formData.get("email"),
           servicio: formData.get("service"),
+          fecha_cita: activeDate,
+          hora_cita: activeTime,
           estado: "Pendiente",
         }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.message);
       setSent(true);
+      setSelectedTime("");
+      await loadAvailability();
     } catch (submissionError) {
       setError(
         submissionError instanceof Error
@@ -303,8 +394,8 @@ export default function LandingClient({ services }: { services: ServiceCardData[
             <p className="lp-eyebrow">RESERVA TU ESPACIO</p>
             <h2>Comienza tu proceso hoy.</h2>
             <p>
-              Déjanos tus datos y te confirmaremos el horario disponible para tu primera
-              valoración. Nos pondremos en contacto contigo para coordinar la cita.
+              Déjanos tus datos, elige el día y la hora que tengas disponibles y te
+              confirmaremos tu primera valoración.
             </p>
             <div className="lp-contact">
               <span aria-hidden="true">✦</span>
@@ -324,7 +415,7 @@ export default function LandingClient({ services }: { services: ServiceCardData[
               </span>
               <div>
                 <h3>Reserva directa</h3>
-                <p>Te confirmamos el horario disponible.</p>
+                <p>Elige el día y la hora disponibles.</p>
               </div>
             </div>
 
@@ -348,17 +439,30 @@ export default function LandingClient({ services }: { services: ServiceCardData[
                     autoComplete="name"
                   />
                 </label>
-                <label>
-                  Celular
-                  <input
-                    required
-                    type="tel"
-                    name="phone"
-                    maxLength={30}
-                    placeholder="Tu número de celular"
-                    autoComplete="tel"
-                  />
-                </label>
+                <div className="lp-form-row">
+                  <label>
+                    Celular
+                    <input
+                      required
+                      type="tel"
+                      name="phone"
+                      maxLength={30}
+                      placeholder="Tu número de celular"
+                      autoComplete="tel"
+                    />
+                  </label>
+                  <label>
+                    Correo electrónico
+                    <input
+                      required
+                      type="email"
+                      name="email"
+                      maxLength={160}
+                      placeholder="tu@correo.com"
+                      autoComplete="email"
+                    />
+                  </label>
+                </div>
                 <label>
                   Servicio
                   <select
@@ -377,6 +481,49 @@ export default function LandingClient({ services }: { services: ServiceCardData[
                     ))}
                   </select>
                 </label>
+                <div className="lp-form-row">
+                  <label>
+                    Día disponible
+                    <select
+                      required
+                      name="fecha"
+                      value={activeDate}
+                      onChange={(event) => {
+                        setSelectedDate(event.target.value);
+                        setSelectedTime("");
+                      }}
+                    >
+                      {availableDays.length === 0 ? (
+                        <option value="">Sin cupos disponibles</option>
+                      ) : (
+                        availableDays.map((day) => (
+                          <option key={day.key} value={day.key}>
+                            {day.label}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </label>
+                  <label>
+                    Hora disponible
+                    <select
+                      required
+                      name="hora"
+                      value={activeTime}
+                      onChange={(event) => setSelectedTime(event.target.value)}
+                      disabled={!activeDate}
+                    >
+                      <option value="" disabled>
+                        Selecciona una hora
+                      </option>
+                      {activeHours.map((hour) => (
+                        <option key={hour} value={hour}>
+                          {formatTimeLabel(hour)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
 
                 {error && (
                   <p className="lp-error" role="alert">
