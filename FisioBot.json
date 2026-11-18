@@ -1,0 +1,513 @@
+{
+  "name": "FisioBot",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "2ad48f50-5d71-4b7d-85bf-adb1eb88950f",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        -368,
+        -128
+      ],
+      "webhookId": "857a6b94-33b3-4610-a6dc-07005e1a39c7",
+      "credentials": {
+        "telegramApi": {
+          "id": "v4BB5iGxCmoAvNuJ",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=[ID Remitente: {{ $json.message.chat.id }}] {{ $json.message.text }}",
+        "options": {
+          "systemMessage": "=Fecha y hora actual: {{ $now.format('YYYY-MM-DD HH:mm') }} (Zona horaria: América/Bogotá).\nID del Administrador (Lina Murillo / Fisio): 1410586331\n\nTodos los mensajes del usuario vendrán antecedidos por una etiqueta: \"[ID Remitente: X]\".\n\nREGLA GENERAL DE FORMATO OBLIGATORIA:\n- ESTÁ ABSOLUTAMENTE PROHIBIDO USAR NEGRITAS O DOBLE ASTERISCO (**) EN CUALQUIER PARTE DE TUS RESPUESTAS. Escribe siempre en texto plano simple, sin usar asteriscos para resaltar palabras.\n\nVALIDACIÓN DE ROL OBLIGATORIA:\nDependiendo del número que aparezca en \"[ID Remitente: X]\", debes actuar en uno de estos dos modos:\n\n==================================================\nMODO 1: ASISTENTE EJECUTIVO INTERNO (SI EL ID ES 1410586331)\n==================================================\n- Trato: Te estás comunicando con tu jefa y colega, la Fisioterapeuta Lina Murillo.\n- Tono: Directo, ejecutivo y eficiente.\n- Acciones permitidas:\n  * Consultar citas usando \"consultar_citas_supabase\".\n  * REPORTE DE CITAS PARA LINA: Cuando Lina pida consultar las citas, lee todos los campos devueltos por Supabase y preséntale cada registro siguiendo este formato exacto (sin negritas):\n\n    • Paciente: [nombre]\n    • Fecha y Hora: [fecha_cita] a las [hora_cita]\n    • Servicio: [servicio]\n    • Estado de Pago: [estado]\n    • Contacto: [celular] | [correo]\n\n    (Si un registro antiguo no tiene nombre, indícale \"Nombre no registrado\").\n  * Crear carpetas en Google Drive y enviar correos formales vía Gmail.\n- Regla: No ofrezcas servicios ni precios a Lina, actúa netamente como asistente de negocio.\n==================================================\nMODO 2: ATENCIÓN AL PACIENTE (SI EL ID ES CUALQUIER OTRO)\n==================================================\n- Trato: Cordial, empático, profesional y de servicio al cliente.\n- Regla de oro: NUNCA menciones herramientas internas (Drive, bases de datos) ni el modo administrador al paciente. No des diagnósticos médicos.\n\nCATÁLOGO DE SERVICIOS Y TARIFAS:\n1. Valoración Inicial y Rehabilitación (1 hora):\n   - Valoración: $100.000 (GRATIS al comprar paquete de rehabilitación).\n   - Rehabilitación individual: $100.000 | Paquete 5 sesiones: $460.000 | Paquete 10 sesiones: $850.000 (Incluye valoración gratis).\n2. Prescripción de Ejercicio (1 hora):\n   - Individual: $60.000 | Paquete 8 sesiones: $400.000.\n3. Modulación / Descargas Musculares (1 hora):\n   - Espalda: $70.000 | Piernas: $90.000 | Cuerpo Completo: $150.000.\n4. Procedimientos Especializados (1 a 2 horas):\n   - Punción Seca: $120.000 | Terapia Neural: $150.000 | PRP: $250.000 | Sueroterapia: $300.000.\n\nHORARIOS Y SEDES:\n- Lunes a Viernes: Sede Tunja (7:00 am a 8:00 pm).\n- Sábados y Domingos: Sede Turmequé (7:00 am a 8:00 pm).\n\n==================================================\nFLUJO CONVERSACIONAL GUIADO PARA PACIENTES:\n==================================================\n\nPASO 1: SALUDO E INFORMACIÓN DE SERVICIOS\n- Si el usuario saluda, pregunta por servicios, tarifas o dolores/molestias:\n  Responde de forma empática explicándole qué servicios se adaptan a su necesidad. Presenta las opciones principales y resalta la promoción del paquete de 10 sesiones con valoración gratis.\n\nPASO 2: ELECCIÓN DE SERVICIO Y CAPTURA GUIADA CON PLANTILLA\n- Cuando el paciente elija un servicio o paquete, dale la bienvenida y pídele sus datos usando la plantilla de ejemplo:\n\n  \"¡Excelente elección! Para verificar la disponibilidad y agendar tu espacio, por favor envíame tus datos en un solo mensaje completando esta lista:\n\n  * Nombre completo:\n  * Número de celular:\n  * Correo electrónico:\n  * Fecha deseada (Año-Mes-Día):\n  * Hora deseada(00:00 AM O PM):\"\n\nPASO 3: VERIFICACIÓN OBLIGATORIA EN BASE DE DATOS Y BLOQUEO DE DUPLICADOS\n- Una vez reunidos los datos del paciente (Nombre, Celular, Correo, Fecha y Hora):\n  1. EJECUTA INCONDICIONALMENTE la herramienta \"consultar_citas_supabase\" para revisar todas las citas agendadas en la base de datos.\n  2. ANALIZA LA BASE DE DATOS Y LA MEMORIA DEL CHAT:\n     * Revisa si en la respuesta de \"consultar_citas_supabase\" O en el historial del mismo chat ya existe una cita registrada para esa misma fecha y esa misma hora.\n     * REGLA DE ORO DE DUPLICADOS: Si la fecha y hora solicitadas YA están reservadas (sea por otra persona o por el mismo usuario en el mismo chat), ESTÁ ABSOLUTAMENTE PROHIBIDO EJECUTAR \"guardar_cita_supabase\".\n     * En caso de cruce o coincidencia, DETÉN EL REGISTRO Y RESPONDE EXACTAMENTE:\n       \"Lo siento, la fecha [FECHA] a las [HORA] ya la tiene reservada otra persona (o ya la agendaste previamente). Por favor elige otra fecha u horario en el que te gustaría asistir.\"\n  3. SI EL HORARIO ESTÁ 100% LIBRE EN LA BASE DE DATOS:\n     * Ejecuta la herramienta \"guardar_cita_supabase\" asignando el estado \"Pendiente de pago\" y crea el evento en Google Calendar.\n     * EJECUCIÓN AUTOMÁTICA DE CORREOS: Invoca de inmediato la herramienta \"enviar_correo_paciente\" pasando el correo electrónico ingresado por el paciente, e invoca \"enviar_notificacion_lina\" para notificar a la fisioterapeuta.\n\nPASO 4: CIERRE Y SOLICITUD DE COMPROBANTE DE PAGO\n- REGLA DE VERIFICACIÓN: NO envíes el mensaje de despedida ni afirmes que la cita fue registrada HASTA QUE la herramienta \"guardar_cita_supabase\" y los envíos de correo se hayan ejecutado exitosamente.\n- Una vez verificado y guardado con éxito, responde EXACTAMENTE:\n  \"¡Tu cita ya quedó registrada en la base de datos y tu espacio está apartado como pendiente de pago! Te acabo de enviar un correo de recordatorio con los detalles de tu cita y el enlace de Google Calendar a tu correo electrónico, y se ha enviado una notificación automática a la fisioterapeuta.\n\n  Para oficializar tu reserva, realiza el abono del 100% al Nequi 3113981422 (Titular: Lina Murillo) y envíame la foto o captura del comprobante por aquí. Además, te pedimos el favor de diligenciar este breve formulario antes de asistir para preparar tu historia clínica: https://forms.gle/ejemplo. Te sugerimos asistir con ropa cómoda y llegar 10 minutos antes. ¡Quedo atento a la foto de tu comprobante!\"\n\nPASO 5: CONFIRMACIÓN DE RECEPCIÓN DE COMPROBANTE EN REVISIÓN Y NOTIFICACIÓN A LINA\n- Cuando el usuario envíe una imagen, foto o archivo de comprobante de pago:\n  1. NO INTENTES LEER O ANALIZAR VISUALMENTE EL CONTENIDO DE LA IMAGEN. Procesa la imagen directamente como el archivo del comprobante de pago.\n  2. Sube/Guarda el archivo de la imagen a la carpeta \"comprobantes\" en Google Drive (ID: 1tJQleMrlgKgzQpRBIrtkeWQ6YFuOy2Sy).\n  3. Invoca de inmediato la herramienta \"enviar_notificacion_lina\" notificando a Lina que el paciente [Nombre del paciente] ha subido un nuevo comprobante de pago a Google Drive para su revisión manual.\n  4. Responde ÚNICAMENTE al paciente con este mensaje exacto:\n     \"¡Recibido! Tu comprobante de pago ha sido guardado con éxito y se encuentra en revisión. En breve la fisioterapeuta Lina Murillo verificará la transacción en su cuenta para confirmar el pago y oficializar tu cita. ¡Muchas gracias por tu paciencia!\""
+        }
+      },
+      "id": "de5ecf69-b3b3-41a9-9ce0-3c644c9742f9",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        80,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-flash-lite-latest",
+        "options": {}
+      },
+      "id": "0f4b75ee-b26c-4fce-8e70-67244794f0cc",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -464,
+        144
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "yyrQVQ7MIIog8UpS",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "contextWindowLength": 20
+      },
+      "id": "da5cd5ca-16e6-426f-992f-46d2a3d1e300",
+      "name": "Simple Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        -304,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "f4d8e990-bce0-44b1-81ab-21c2cfe67bee",
+      "name": "Send a text message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        752,
+        -208
+      ],
+      "webhookId": "1dbc5e6e-12d4-4085-a231-2f3b6c03954d",
+      "credentials": {
+        "telegramApi": {
+          "id": "v4BB5iGxCmoAvNuJ",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "gaboreexx@gmail.com",
+          "mode": "id"
+        },
+        "start": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Start', ``, 'string') }}",
+        "end": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('End', ``, 'string') }}",
+        "additionalFields": {
+          "description": "Añadir tituto al evento en el calendario",
+          "summary": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Summary', ``, 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        512,
+        16
+      ],
+      "id": "3417c800-c9c4-4e3c-b04e-9dcc5cbe0bf7",
+      "name": "Create an event in Google Calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "bIOxxI1gIW7VqsXq",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('To', ``, 'string') }}",
+        "subject": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Subject', ``, 'string') }}",
+        "emailType": "text",
+        "message": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Message', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.2,
+      "position": [
+        528,
+        304
+      ],
+      "id": "3c297172-ed43-4394-a253-ccf711d09b20",
+      "name": "Send a message in Gmail",
+      "webhookId": "1b456656-1b8d-4670-ab67-42104d90b9d8",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "hpQxkS11HYLZsObg",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "folder",
+        "name": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Folder_Name', ``, 'string') }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1tJQleMrlgKgzQpRBIrtkeWQ6YFuOy2Sy",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTool",
+      "typeVersion": 3,
+      "position": [
+        -16,
+        320
+      ],
+      "id": "00e4f2d7-029b-463b-ae7e-87a340269f60",
+      "name": "Create folder in Google Drive",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "HvnAWHJ97wyUSzdS",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "gaboreexx@gmail.com",
+          "mode": "list",
+          "cachedResultName": "gaboreexx@gmail.com"
+        },
+        "limit": 20,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        -160,
+        192
+      ],
+      "id": "84552d3e-bfe8-4eff-8032-7505994885d4",
+      "name": "Get many events in Google Calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "bIOxxI1gIW7VqsXq",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "HERRAMIENTA OBLIGATORIA: Invoca esta herramienta para guardar los datos de una nueva cita (nombre, documento, cedula, celular, correo, servicio, fecha_cita, hora_cita) en Supabase cuando un paciente confirme su reserva.",
+        "method": "POST",
+        "url": "https://wizehtnntqwojzdpnryr.supabase.co/rest/v1/clientes",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpemVodG5udHF3b2p6ZHBucnlyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5NDQwODAwMiwiZXhwIjoyMTA5OTg0MDAyfQ.Crmql4bkr-DsHX6qxi9PRa07fC24sxl5pkW6TRUN67E"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpemVodG5udHF3b2p6ZHBucnlyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5NDQwODAwMiwiZXhwIjoyMTA5OTg0MDAyfQ.Crmql4bkr-DsHX6qxi9PRa07fC24sxl5pkW6TRUN67E"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "nombre",
+              "value": "={{ $fromAI('nombre', 'Nombre completo del paciente', 'string') }}"
+            },
+            {
+              "name": "celular",
+              "value": "={{ $fromAI('celular', 'Número de celular', 'string') }}"
+            },
+            {
+              "name": "correo",
+              "value": "={{ $fromAI('correo', 'Correo electrónico', 'string') }}"
+            },
+            {
+              "name": "servicio",
+              "value": "={{ $fromAI('servicio', 'Servicio solicitado', 'string') }}"
+            },
+            {
+              "name": "fecha_cita",
+              "value": "={{ $fromAI('fecha_cita', 'Fecha de la cita en formato YYYY-MM-DD', 'string') }}"
+            },
+            {
+              "name": "hora_cita",
+              "value": "={{ $fromAI('hora_cita', 'Hora de la cita', 'string') }}"
+            },
+            {
+              "name": "estado",
+              "value": "Pendiente de pago"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.5,
+      "position": [
+        240,
+        432
+      ],
+      "id": "9d24c5c6-447e-4230-a3a7-bab752379616",
+      "name": "guardar_cita_supabase"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Utiliza esta herramienta para consultar todas las citas registradas en la base de datos de Supabase. Úsala para verificar disponibilidad antes de agendar y para mostrarle la agenda a la fisioterapeuta.",
+        "url": "https://wizehtnntqwojzdpnryr.supabase.co/rest/v1/clientes?select=nombre,celular,correo,servicio,fecha_cita,hora_cita,estado",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpemVodG5udHF3b2p6ZHBucnlyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5NDQwODAwMiwiZXhwIjoyMTA5OTg0MDAyfQ.Crmql4bkr-DsHX6qxi9PRa07fC24sxl5pkW6TRUN67E"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpemVodG5udHF3b2p6ZHBucnlyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5NDQwODAwMiwiZXhwIjoyMTA5OTg0MDAyfQ.Crmql4bkr-DsHX6qxi9PRa07fC24sxl5pkW6TRUN67E"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.5,
+      "position": [
+        160,
+        272
+      ],
+      "id": "eb0f1e89-a2d4-4ad9-bf4b-3857780709ee",
+      "name": "consultar_citas_supabase"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('To', `Correo electrónico del paciente`, 'string') }}",
+        "subject": "¡Reserva Confirmada! Agrega tu cita a tu Google Calendar",
+        "message": "<p>Hola,</p>  <p>Tu cita de fisioterapia ha sido registrada con éxito en nuestro sistema.</p>  <p>Haz clic en el siguiente botón para agregar este evento directamente a tu Google Calendar:</p>  <p>   <a href=\"https://calendar.google.com/calendar/render?action=TEMPLATE&text=Cita+de+Fisioterapia+-+Lina+Murillo&details=Cita+de+fisioterapia.+Llegar+10+minutos+antes.&location=Sede+Fisioterapia\"       style=\"background-color: #25D366; color: white; padding: 12px 18px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;\">      📅 Agregar a mi Google Calendar   </a> </p>  <p>Recuerda enviar la foto o captura del comprobante al Nequi 3113981422 para oficializar tu reserva.</p> <p>¡Te esperamos!</p>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.2,
+      "position": [
+        608,
+        -80
+      ],
+      "id": "b9b1e448-10b7-40c1-ab78-22f44c33892d",
+      "name": "enviar_correo_paciente",
+      "webhookId": "f735f0ba-a754-4ecb-8411-93b1b411875d",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "hpQxkS11HYLZsObg",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "borda.fredy22@gmail.com",
+        "subject": "🚨 Nueva Reserva Registrada - Sistema de Fisioterapia",
+        "message": "<h2>¡Hola Lina! Tienes una nueva reserva registrada en la plataforma</h2>  <p>Un paciente acaba de agendar un espacio en el sistema de fisioterapia. Se han enviado las instrucciones de confirmación y el botón de Google Calendar a su correo.</p>  <p><b>Detalles del proceso:</b></p> <ul>   <li>📌 <b>Estado actual:</b> Pendiente de pago</li>   <li>📲 <b>Verificación:</b> El bot de Telegram notificará cuando el paciente envíe la foto del comprobante de Nequi.</li> </ul>  <p><i>Puedes consultar el detalle completo del paciente escribiendo al bot en Telegram cuando lo requieras.</i></p>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        384
+      ],
+      "id": "190072bc-ab9d-4958-bd8e-afcfbc5cd646",
+      "name": "enviar_notificacion_lina",
+      "webhookId": "74398aa5-8990-49ff-bd1d-c2def73ad619",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "hpQxkS11HYLZsObg",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create an event in Google Calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message in Gmail": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create folder in Google Drive": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many events in Google Calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "guardar_cita_supabase": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_citas_supabase": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "enviar_correo_paciente": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "enviar_notificacion_lina": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "9a7be88e-3a48-4fe7-bfd4-7c4092af4d09",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a9ff0917886d33a5b0b402404da413a1d4461ca69aec70d3802c7467a76707a4"
+  },
+  "nodeGroups": [],
+  "id": "pj85hrVisPN6cqNh",
+  "tags": []
+}

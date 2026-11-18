@@ -1,6 +1,6 @@
 # Fisioterapeuta LII
 
-> **Prototipo de hackathon — proyecto estudiantil.** No es un producto final ni un proyecto seleccionado o premiado. Fue construido con fines académicos y de demostración, no está pensado para producción ni para manejar datos reales de pacientes.
+> **Prototipo de hackathon — proyecto estudiantil.**
 
 Sitio web para una clínica de fisioterapia. Incluye una landing pública, reserva de citas, un panel administrativo (resumen, agenda semanal, clientes y servicios) y un acceso directo a un bot de Telegram.
 
@@ -76,6 +76,9 @@ supabase-migration.sql
 - No cuenta con pruebas automatizadas ni auditoría de seguridad.
 - Pensado para datos de prueba: evita registrar información real de pacientes.
 - La base de datos y el almacenamiento pertenecen a cada entorno; no se comparten.
+
+## json del FisioBot 
+- Este json esta el croquis debes agregar las foreign keys de su respectiva base de datos, ia y telegram.
 
 ## Seguridad
 
