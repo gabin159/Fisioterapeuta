@@ -35,39 +35,6 @@ cd Fisioterapeuta
 - npm
 - Una cuenta y un proyecto propios en Supabase
 
-## Configura tu propia base de datos en Supabase
-
-Este repositorio **no incluye** una base de datos lista para usar. Cada persona que clone el proyecto debe crear la suya.
-
-1. Crea un proyecto en [supabase.com](https://supabase.com/).
-2. Abre **SQL Editor** y ejecuta el contenido de [`supabase-schema.sql`](./supabase-schema.sql). Ese script crea las tablas, el administrador de ejemplo y el catálogo inicial de servicios.
-   - Si ya tenías las tablas creadas, usa [`supabase-migration.sql`](./supabase-migration.sql) en su lugar.
-3. En **Storage**, verifica que exista el bucket `servicios` con acceso público. La aplicación intenta crearlo automáticamente, pero conviene revisarlo.
-4. Copia tu **Project URL** y tu **Secret key** desde *Project Settings → API*.
-
-> El script incluye un administrador de ejemplo. Antes de publicar el proyecto, reemplaza ese registro por tus propias credenciales.
-
-## Variables de entorno
-
-No se incluye ningún archivo `.env` en el repositorio. Crea un archivo `.env.local` en la raíz con tus propios valores:
-
-```env
-ADMIN_EMAIL=tu-correo@ejemplo.com
-ADMIN_PASSWORD=tu-contrasena-segura
-AUTH_SESSION_SECRET=una-cadena-larga-y-aleatoria
-SUPABASE_URL=https://tu-proyecto.supabase.co
-SUPABASE_SECRET_KEY=tu-secret-key
-# Opcional: envío del correo de confirmación de reserva con Resend
-RESEND_API_KEY=tu-api-key-de-resend
-RESEND_FROM=Reservas <reservas@tudominio.com>
-```
-
-Notas:
-
-- `SUPABASE_SECRET_KEY` es una clave privada de servidor: **nunca** la expongas en el cliente ni la subas a GitHub.
-- `AUTH_SESSION_SECRET` se usa para firmar la cookie de sesión. Usa un valor aleatorio largo.
-- El login valida primero contra la tabla `administradores` y, si no encuentra el usuario, contra `ADMIN_EMAIL` y `ADMIN_PASSWORD`.
-- Si no configuras `RESEND_API_KEY` y `RESEND_FROM`, la reserva se guarda normalmente pero no se envía correo al cliente.
 
 ## Instalación y ejecución
 
